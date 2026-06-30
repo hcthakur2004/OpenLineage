@@ -16,8 +16,8 @@
               "severity": "error",
               "type": "singular",
               "description": "Ensures all order amounts are positive.",
-              "expected": null,
-              "actual": null,
+              "expected": "0",
+              "actual": "0",
               "content": "select * from my_schema.orders where amount < 0",
               "contentType": "sql",
               "params": {}
@@ -74,7 +74,7 @@
       "facets": {
         "jobType": {
           "_producer": "{{ any(result) }}",
-          "_schemaURL": "https://openlineage.io/spec/facets/2-0-3/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
+          "_schemaURL": "https://openlineage.io/spec/facets/2-0-4/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
           "_deleted": null,
           "processingType": "BATCH",
           "integration": "DBT",
@@ -114,8 +114,8 @@
               "severity": "warn",
               "type": "singular",
               "description": null,
-              "expected": null,
-              "actual": null,
+              "expected": "0",
+              "actual": "5",
               "content": "select * from my_schema.orders where amount not between 0 and 10000",
               "contentType": "sql",
               "params": {}
@@ -172,7 +172,7 @@
       "facets": {
         "jobType": {
           "_producer": "{{ any(result) }}",
-          "_schemaURL": "https://openlineage.io/spec/facets/2-0-3/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
+          "_schemaURL": "https://openlineage.io/spec/facets/2-0-4/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
           "_deleted": null,
           "processingType": "BATCH",
           "integration": "DBT",
@@ -212,8 +212,8 @@
               "severity": "error",
               "type": "singular",
               "description": "Ensures all order amounts are positive.",
-              "expected": null,
-              "actual": null,
+              "expected": "0",
+              "actual": "0",
               "content": "select * from my_schema.orders where amount < 0",
               "contentType": "sql",
               "params": {}
@@ -270,7 +270,7 @@
       "facets": {
         "jobType": {
           "_producer": "{{ any(result) }}",
-          "_schemaURL": "https://openlineage.io/spec/facets/2-0-3/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
+          "_schemaURL": "https://openlineage.io/spec/facets/2-0-4/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
           "_deleted": null,
           "processingType": "BATCH",
           "integration": "DBT",
@@ -310,8 +310,8 @@
               "severity": "warn",
               "type": "singular",
               "description": null,
-              "expected": null,
-              "actual": null,
+              "expected": "0",
+              "actual": "5",
               "content": "select * from my_schema.orders where amount not between 0 and 10000",
               "contentType": "sql",
               "params": {}
@@ -368,7 +368,7 @@
       "facets": {
         "jobType": {
           "_producer": "{{ any(result) }}",
-          "_schemaURL": "https://openlineage.io/spec/facets/2-0-3/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
+          "_schemaURL": "https://openlineage.io/spec/facets/2-0-4/JobTypeJobFacet.json#/$defs/JobTypeJobFacet",
           "_deleted": null,
           "processingType": "BATCH",
           "integration": "DBT",

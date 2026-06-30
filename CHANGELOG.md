@@ -1,6 +1,136 @@
 # Changelog
 
-## [Unreleased](https://github.com/OpenLineage/OpenLineage/compare/1.46.0...HEAD)
+## [Unreleased](https://github.com/OpenLineage/OpenLineage/compare/1.50.0...HEAD)
+
+## [1.50.0](https://github.com/OpenLineage/OpenLineage/compare/1.49.0...1.50.0)
+
+### Added
+
+* **Client/Java: Add timeout-aware run event emission support** [`#4613`](https://github.com/OpenLineage/OpenLineage/pull/4613) [@jsingh-yelp](https://github.com/jsingh-yelp)
+  *Add a timeout-aware `emit` overload to the Java client and `Transport` API, allowing callers to provide a bounded wait when emitting `RunEvent`s; Kafka transport uses the timeout to wait for producer acknowledgement before returning.*
+* **Flink: Add support for OpenLineage events in detached Flink Session Mode** [`#4596`](https://github.com/OpenLineage/OpenLineage/pull/4596) [@jsingh-yelp](https://github.com/jsingh-yelp)
+  *Enable full OpenLineage lifecycle events (RUNNING, COMPLETE, FAIL) for Flink jobs submitted in detached Session Mode by introducing `OpenLineageDetachedJobStatusChangedListener` that initialises the Flink job ID from the REST API, bypassing the missing `JobCreatedEvent` on the JobManager side.*
+
+### Fixed
+
+* **Flink: Emit ABORT event for canceled jobs instead of FAIL** [`#4615`](https://github.com/OpenLineage/OpenLineage/pull/4615) [@wangxiaojing](https://github.com/wangxiaojing)
+  *Map `JobStatus.CANCELED` to `EventType.ABORT` in Flink 2 job status handling; previously all non-FINISHED terminal statuses were mapped to FAIL, causing user-canceled jobs to appear as failures in downstream OpenLineage consumers.*
+* **Python: Fix env var facet overwriting event-supplied values** [`#4635`](https://github.com/OpenLineage/OpenLineage/pull/4635) [@kacpermuda](https://github.com/kacpermuda)
+  *Merge client-configured environment variables into any `environmentVariables` facet already set by the producer instead of replacing it; event-supplied values take precedence and a warning is logged on conflict.*
+* **Spark: Fix missing Iceberg scan report facet using scanReportSupplier** [`#4633`](https://github.com/OpenLineage/OpenLineage/pull/4633) [@fm100](https://github.com/fm100)
+  *Fix missing `IcebergScanReport` input dataset facet in CTAS/RTAS queries by reading the report directly from `scanReportSupplier` when available, rather than relying on `OpenLineageMetricsReporter` which is registered after the scan has already occurred.*
+
+## [1.49.0](https://github.com/OpenLineage/OpenLineage/compare/1.48.0...1.49.0)
+
+### Added
+
+* **Java: Add CassandraJdbcExtractor** [`#4610`](https://github.com/OpenLineage/OpenLineage/pull/4610) [@matveeysv](https://github.com/matveeysv)
+  *Add `CassandraJdbcExtractor` to parse Cassandra JDBC URLs according to the driver specification, enabling lineage tracking for Cassandra databases via JDBC.*
+
+### Fixed
+
+* **dbt: Add missing column lineage for structured log processor** [`#4599`](https://github.com/OpenLineage/OpenLineage/pull/4599) [@fm100](https://github.com/fm100)
+  *Fix missing column lineage facet in `DbtStructuredLogsProcessor` when using `--consume-structured-logs` option by attaching the column lineage facet to the output dataset on node finished events.*
+* **dbt: Use fully qualified job ID for externalQuery run facet for BigQuery** [`#4591`](https://github.com/OpenLineage/OpenLineage/pull/4591) [@fm100](https://github.com/fm100)
+  *Use a fully qualified job ID (with project ID and location) for the `externalQueryId` in the `externalQuery` run facet when using the dbt-bigquery adapter; also adds `externalQuery` run facet support when using `--consume-structured-logs`.*
+* **Spark: Fix GCP Dataproc jobId when job has multiple attempts** [`#4598`](https://github.com/OpenLineage/OpenLineage/pull/4598) [@codelixir](https://github.com/codelixir)
+  *Exclude the `dataproc_job_attempt_timestamp` tag prefix when reading the job ID from Yarn tags in the GCP Dataproc facet, preventing the attempt timestamp from being reported as the job ID on retried jobs.*
+* **Spark: Fix Lakehouse detection mechanism** [`#4611`](https://github.com/OpenLineage/OpenLineage/pull/4611) [@tnazarew](https://github.com/tnazarew)
+  *Fix incorrect Spark configuration properties used in the Lakehouse Hive Catalog detection logic and extend catalog detection to `V2SessionCatalogHandler` used by DatasetBuilders.*
+* **Spark: Fix Snowflake column lineage for quoted identifiers** [`#4602`](https://github.com/OpenLineage/OpenLineage/pull/4602) [@mrpalash-amz](https://github.com/mrpalash-amz)
+  *Fix missing column lineage when the Snowflake Spark connector uses quoted identifiers (e.g. in AWS Glue ETL with `dbtable` path) by applying `stripQuotes()` normalization on both sides of identifier comparisons in `ColumnLevelLineageBuilder` and `SqlCollector`.*
+
+## [1.48.0](https://github.com/OpenLineage/OpenLineage/compare/1.47.1...1.48.0)
+
+### Added
+
+* **Spark: Add iceberg s3 tables catalog support** [`#4558`](https://github.com/OpenLineage/OpenLineage/pull/4558) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix incorrect Glue table symlink attachment when using S3 Tables as the Iceberg catalog by adding dedicated S3 Tables catalog support and preventing Glue fallback when the S3 Tables catalog is active.*
+* **Spark: Add Lakehouse Hive Catalog handling** [`#4574`](https://github.com/OpenLineage/OpenLineage/pull/4574) [@tnazarew](https://github.com/tnazarew)
+  *Add support for the Lakehouse (formerly BigLake) Hive Catalog used by Spark jobs running on Managed Spark (formerly Dataproc).*
+* **Spark: Add Snowflake Iceberg REST catalog (Horizon) support** [`#4546`](https://github.com/OpenLineage/OpenLineage/pull/4546) [@adnanhemani](https://github.com/adnanhemani)
+  *Add support for the Snowflake Horizon Iceberg REST catalog, enabling the Spark integration to emit correct dataset identifiers with Snowflake namespaces for Iceberg tables managed through Snowflake's REST catalog.*
+
+### Changed
+
+* **Client/Java: Upgrade Kinesis Producer Library to 1.0.7 and AWS SDK to 2.44.3** [`#4536`](https://github.com/OpenLineage/OpenLineage/pull/4536) [@W-Ely](https://github.com/W-Ely)
+  *Upgrade the Amazon Kinesis Producer Library (KPL) from 0.15.12 to 1.0.7 and update AWS SDK dependencies to 2.44.3 to maintain compatibility and pick up upstream fixes.*
+* **Python: Log if JSON parsing fails for env var** [`#4552`](https://github.com/OpenLineage/OpenLineage/pull/4552) [@kacpermuda](https://github.com/kacpermuda)
+  *Add a warning log message when JSON parsing of OpenLineage configuration from environment variables fails, making configuration errors easier to diagnose.*
+* **Spark: Make iceberg catalog identifiers optional** [`#4557`](https://github.com/OpenLineage/OpenLineage/pull/4557) [@mobuchowski](https://github.com/mobuchowski)
+  *Change `BaseCatalogTypeHandler.getIdentifier()` to return `Optional<DatasetIdentifier>` instead of a nullable value, making the contract for Iceberg catalog type handlers more explicit and null-safe.*
+* **Spark: Refactor of Dataset builder** [`#4587`](https://github.com/OpenLineage/OpenLineage/pull/4587) [@tnazarew](https://github.com/tnazarew)
+  *Refactor Spark integration's dataset-building logic from overloaded methods to a more flexible builder pattern, improving extensibility and maintainability.*
+
+### Fixed
+
+* **Python: Detect GitHub pull request head refs** [`#4561`](https://github.com/OpenLineage/OpenLineage/pull/4561) [@hcthakur2004](https://github.com/hcthakur2004)
+  *Fix pull request number detection in the Python client to recognize `refs/pull/<number>/head` format (used in GitHub Actions `pull_request` events) in addition to the existing `refs/pull/<number>/merge` form.*
+* **Spark: Fix SnowflakeCatalogTypeHandler.getIdentifier() return type** [`#4571`](https://github.com/OpenLineage/OpenLineage/pull/4571) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix `SnowflakeCatalogTypeHandler.getIdentifier()` to return `Optional<DatasetIdentifier>` as required by `BaseCatalogTypeHandler`, correcting a type mismatch introduced when the Snowflake Iceberg REST catalog handler was first added.*
+* **Spark: Map sqlserver to MsSqlDialect** [`#4556`](https://github.com/OpenLineage/OpenLineage/pull/4556) [@dbathie-wtg](https://github.com/dbathie-wtg)
+  *Map Spark JDBC `sqlserver` URLs to `MsSqlDialect` so SQL Server queries using bracketed identifiers (`[schema].[table]`) are parsed correctly during lineage extraction.*
+
+## [1.47.1](https://github.com/OpenLineage/OpenLineage/compare/1.47.0...1.47.1)
+
+### Changed
+
+* **Client/Go: Rewrite code generator** [`#4501`](https://github.com/OpenLineage/OpenLineage/pull/4501) [@tnazarew](https://github.com/tnazarew)
+  *Replace the `quicktype`-based text-manipulation generator with a structured pipeline that parses spec files via `go-jsonschema`, resolves references, and renders facet classes — enabling extension of generated classes (e.g. byool resources). Also renames `Run` → `RunWrapper` and `RunInfo` → `Run` for consistency with `Job` and `Dataset`.*
+
+### Fixed
+
+* **dbt: Use correct name for fabric adapter** [`#4542`](https://github.com/OpenLineage/OpenLineage/pull/4542) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix `extract_adapter_type` lookup for the Microsoft Fabric adapter by aligning the `Adapter` enum name with the dbt adapter type (`fabric`), while keeping the `fabric-warehouse` OpenLineage namespace unchanged.*
+
+## [1.47.0](https://github.com/OpenLineage/OpenLineage/compare/1.46.0...1.47.0)
+
+### Added
+
+* **dbt: Add Microsoft Fabric adapter support** [`#4485`](https://github.com/OpenLineage/OpenLineage/pull/4485) [@harels](https://github.com/harels)
+  *Register `dbt-fabric` in the supported `Adapter` enum and add `fabric://` namespace extraction, preventing `NotImplementedError` on Fabric profiles and enabling lineage tracking for Microsoft Fabric datasets.*
+* **Flink: Add ClickHouse JDBC support** [`#4495`](https://github.com/OpenLineage/OpenLineage/pull/4495) [@och5351](https://github.com/och5351)
+  *Add `ClickHouseJdbcExtractor` to enable lineage tracking for ClickHouse JDBC connections, supporting both `jdbc:clickhouse://` and `jdbc:ch://` URL schemes with optional protocol prefix removal.*
+* **Flink: Extract generic schema and config facet visitors** [`#4506`](https://github.com/OpenLineage/OpenLineage/pull/4506) [@jsingh-yelp](https://github.com/jsingh-yelp)
+  *Add `ConfigFacetVisitor` and `SchemaFacetVisitor` for non-Table API Flink 2 datasets, enabling schema and configuration metadata extraction for DataStream API connectors beyond the Table API.*
+* **Spec/Python: Extend DataQualityAssertionsDatasetFacet with new information** [`#4457`](https://github.com/OpenLineage/OpenLineage/pull/4457) [@kacpermuda](https://github.com/kacpermuda)
+  *Extend `DataQualityAssertionsDatasetFacet` with additional fields (actual value, expected value, severity) aligned with `TestRunFacet`, bumping the facet spec to 1-1-0.*
+
+### Changed
+
+* **dbt: Expose failure counts and thresholds on dbt test facets** [`#4500`](https://github.com/OpenLineage/OpenLineage/pull/4500) [@mobuchowski](https://github.com/mobuchowski)
+  *Populate `actual` and `expected` fields on `DataQualityAssertionsDatasetFacet` and `TestRunFacet` with the dbt test failure count and error threshold, enabling consumers to distinguish passing tests from failures and understand configured tolerances.*
+
+### Fixed
+
+* **Client/Java: Fix MySqlJdbcExtractor incorrectly includes URL database in qualified table names** [`#4497`](https://github.com/OpenLineage/OpenLineage/pull/4497) [@och5351](https://github.com/och5351)
+  *Fix MySQL JDBC extractor to not prepend the URL database to already-qualified table names, preventing invalid 3-level identifiers like `mydb.schema.table1` (MySQL treats DATABASE and SCHEMA as synonyms).*
+* **dbt: Allow retry command** [`#4520`](https://github.com/OpenLineage/OpenLineage/pull/4520) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix dbt-ol to recognize `retry` as a valid dbt command so lineage is captured when re-running failed nodes.*
+* **dbt: Emit FAIL on aggregate test event when assertions failed** [`#4523`](https://github.com/OpenLineage/OpenLineage/pull/4523) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix aggregate test events in the legacy `consume_local_artifacts` path that emitted COMPLETE (success) even when the embedded `DataQualityAssertions` facet showed error-severity assertion failures.*
+* **dbt: Fix race condition in dbt parsing** [`#4472`](https://github.com/OpenLineage/OpenLineage/pull/4472) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix stale `manifest.json` from a prior invocation being loaded before dbt finishes its parse phase by subscribing to the `ArtifactWritten` structured log event (dbt ≥ 1.9) and lazy-loading for older versions.*
+* **dbt: Guard against None node_unique_id in get_job_type()** [`#4489`](https://github.com/OpenLineage/OpenLineage/pull/4489) [@hcthakur2004](https://github.com/hcthakur2004)
+  *Fix `AttributeError: 'NoneType' object has no attribute 'startswith'` crash when `node_info.unique_id` is absent from the event by adding an early `None` guard.*
+* **dbt: Handle dbt owner list** [`#4515`](https://github.com/OpenLineage/OpenLineage/pull/4515) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix crash when the dbt `owner` metadata field is a list rather than a string, handling both single-owner and multi-owner configurations gracefully.*
+* **dbt: Handle missing "description" key in DbtArtifactProcessor for dbt-fusion support** [`#4499`](https://github.com/OpenLineage/OpenLineage/pull/4499) [@ichirotakami](https://github.com/ichirotakami)
+  *Fix `KeyError` in `extract_dataset_data()` for dbt-fusion manifests where source nodes omit the `description` key by using `.get()` with an empty string default.*
+* **dbt: Propagate root parent through dbt-run wrapper to child events** [`#4522`](https://github.com/OpenLineage/OpenLineage/pull/4522) [@mobuchowski](https://github.com/mobuchowski)
+  *Fix `root=None` in the parent facet for per-node events emitted via the legacy `consume_local_artifacts` path by propagating `root_parent_*` fields to `dbt_run_metadata`.*
+* **dbt: Specify utf-8 encoding when opening files** [`#4503`](https://github.com/OpenLineage/OpenLineage/pull/4503) [@hcthakur2004](https://github.com/hcthakur2004)
+  *Fix file reading in the dbt provider to explicitly specify UTF-8 encoding, preventing `UnicodeDecodeError` on systems where the default locale encoding is not UTF-8.*
+* **Hive: Fix NPE in Parsing.buildQueryTree for 3+ way set operations** [`#4498`](https://github.com/OpenLineage/OpenLineage/pull/4498) [@1fanwang](https://github.com/1fanwang)
+  *Fix `NullPointerException` when processing Hive queries with 3+ way `UNION ALL`, `INTERSECT`, or `EXCEPT` set operations by recursively descending through intermediate `QBExpr` nodes instead of assuming leaf-only structure.*
+* **Spark: Add support for SparkChangelogTable in IcebergHandler** [`#4439`](https://github.com/OpenLineage/OpenLineage/pull/4439) [@NETIZEN-11](https://github.com/NETIZEN-11)
+  *Fix `ClassCastException` when Iceberg returns `SparkChangelogTable` instead of `SparkTable` by replacing the unsafe direct cast with `instanceof` checks and graceful fallback handling.*
+* **Spark: Bump httpclient5 to 5.6.1 for CVE-2026-40542** [`#4521`](https://github.com/OpenLineage/OpenLineage/pull/4521) [@Poojitha-R-Rao](https://github.com/Poojitha-R-Rao)
+  *Upgrade `httpclient5` dependency to 5.6.1 to address security vulnerability CVE-2026-40542.*
+* **Spark: Fix PathUtils.reconstructDefaultLocation malformed URI for S3 paths** [`#4505`](https://github.com/OpenLineage/OpenLineage/pull/4505) [@creazyfrog](https://github.com/creazyfrog)
+  *Fix incorrect use of Hadoop's 3-argument `Path` constructor that produced malformed S3 URIs like `s3://bucket/prefix://database.db./table_name`, which caused `IllegalArgumentException` and silently dropped all lineage events.*
+* **Spark: Update AWS SDK to resolve CVE-2026-33871** [`#4427`](https://github.com/OpenLineage/OpenLineage/pull/4427) [@Poojitha-R-Rao](https://github.com/Poojitha-R-Rao)
+  *Upgrade AWS SDK version to address security vulnerability CVE-2026-33871 (netty-codec).*
 
 ## [1.46.0](https://github.com/OpenLineage/OpenLineage/compare/1.45.0...1.46.0)
 

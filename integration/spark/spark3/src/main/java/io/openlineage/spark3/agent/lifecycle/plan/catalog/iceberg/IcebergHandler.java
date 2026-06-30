@@ -8,10 +8,10 @@ package io.openlineage.spark3.agent.lifecycle.plan.catalog.iceberg;
 import io.openlineage.client.OpenLineage;
 import io.openlineage.client.utils.DatasetIdentifier;
 import io.openlineage.client.utils.DatasetIdentifier.SymlinkType;
+import io.openlineage.spark.agent.lifecycle.plan.catalog.CatalogHandler;
 import io.openlineage.spark.agent.util.PathUtils;
 import io.openlineage.spark.agent.util.ScalaConversionUtils;
 import io.openlineage.spark.api.OpenLineageContext;
-import io.openlineage.spark3.agent.lifecycle.plan.catalog.CatalogHandler;
 import io.openlineage.spark3.agent.lifecycle.plan.catalog.MissingDatasetIdentifierCatalogException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,8 +49,13 @@ public class IcebergHandler implements CatalogHandler {
     this.context = context;
     this.catalogTypeHandlers =
         Arrays.asList(
+            // S3TablesCatalogTypeHandler must run first: its warehouse-ARN and glue.id signals
+            // must override the suffix-based matches in GlueCatalogTypeHandler and the type=rest
+            // match in RestCatalogTypeHandler when the underlying catalog is S3 Tables.
+            new S3TablesCatalogTypeHandler(),
             new NessieCatalogTypeHandler(),
             new GlueCatalogTypeHandler(),
+            new SnowflakeCatalogTypeHandler(),
             new RestCatalogTypeHandler(),
             new BigQueryMetastoreCatalogTypeHandler(),
             new HadoopCatalogTypeHandler(),
@@ -60,10 +65,10 @@ public class IcebergHandler implements CatalogHandler {
   @Override
   public boolean hasClasses() {
     try {
-      IcebergHandler.class.getClassLoader().loadClass("org.apache.iceberg.catalog.Catalog");
+      IcebergHandler.class.getClassLoader().loadClass("org.apache.iceberg.spark.SparkCatalog");
       return true;
-    } catch (Exception e) {
-      log.debug("The iceberg catalog is not present");
+    } catch (NoClassDefFoundError | Exception e) {
+      log.debug("The iceberg spark catalog is not present");
     }
     return false;
   }
@@ -89,7 +94,7 @@ public class IcebergHandler implements CatalogHandler {
     }
     Map<String, String> conf = catalogConf.get();
     BaseCatalogTypeHandler catalogTypeHandler = getCatalogTypeHandler(conf);
-    String catalogType = Optional.ofNullable(conf.get(TYPE)).orElse(catalogTypeHandler.getType());
+    String catalogType = catalogTypeHandler.getFacetType(conf);
 
     OpenLineage.CatalogDatasetFacetBuilder builder =
         context
@@ -153,6 +158,24 @@ public class IcebergHandler implements CatalogHandler {
         ICEBERG_PATH_IDENTIFIER_CLASS_NAME.equals(identifier.getClass().getName());
     Optional<Table> table = getIcebergTable(tableCatalog, identifier);
     Optional<Path> maybeTableLocation = table.map(tbl -> new Path(tbl.location()));
+
+    // S3 Tables identity comes from catalog config and the logical Spark identifier, not
+    // table.location(). Build it before path-based fallback so NoSuchTableException paths
+    // (for example, create-like operations) can still produce a stable dataset name.
+    Optional<DatasetIdentifier> primaryOverride =
+        catalogTypeHandler.getPrimaryIdentifier(session, catalogConf, identifier, catalogName);
+    if (primaryOverride.isPresent()) {
+      DatasetIdentifier di = primaryOverride.get();
+      maybeTableLocation.ifPresent(
+          loc -> {
+            String authority = loc.toUri().getAuthority();
+            if (authority != null) {
+              di.withSymlink("/", "s3://" + authority, SymlinkType.LOCATION);
+            }
+          });
+      return di;
+    }
+
     Optional<DatasetIdentifier> maybeSymlink = Optional.empty();
     if (isDefaultIcebergCatalog && lacksWarehouseProperty && isPathIdentifier) {
       if (log.isDebugEnabled()) {
@@ -170,8 +193,7 @@ public class IcebergHandler implements CatalogHandler {
             catalogName);
       }
       String tableName = identifier.toString();
-      maybeSymlink =
-          Optional.ofNullable(catalogTypeHandler.getIdentifier(session, catalogConf, tableName));
+      maybeSymlink = catalogTypeHandler.getIdentifier(session, catalogConf, tableName);
     }
 
     if (!maybeTableLocation.isPresent() && warehouseLocation == null) {
@@ -184,6 +206,14 @@ public class IcebergHandler implements CatalogHandler {
     Path tableLocation =
         maybeTableLocation.orElseGet(
             () -> catalogTypeHandler.defaultTableLocation(new Path(warehouseLocation), identifier));
+
+    if (maybeSymlink.isPresent() && catalogTypeHandler.shouldOverridePrimary()) {
+      DatasetIdentifier primaryDi = maybeSymlink.get();
+      DatasetIdentifier physicalDi = PathUtils.fromPath(tableLocation);
+      primaryDi.withSymlink(physicalDi.getName(), physicalDi.getNamespace(), SymlinkType.TABLE);
+      return primaryDi;
+    }
+
     DatasetIdentifier di = PathUtils.fromPath(tableLocation);
     maybeSymlink.ifPresent(
         symlink -> di.withSymlink(symlink.getName(), symlink.getNamespace(), SymlinkType.TABLE));
